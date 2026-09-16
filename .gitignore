@@ -1,0 +1,43 @@
+# Build directories
+build/
+out/
+bin/
+
+# Temporary and scratch files
+.scratch/
+wayfinder/
+*.log
+debug_freeze.log
+*.md
+
+# CMake
+CMakeCache.txt
+CMakeFiles
+CMakeScripts
+Makefile
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps/
+
+# Visual Studio / MSVC
+.vs/
+*.user
+*.suo
+*.pdb
+*.idb
+*.ilk
+*.obj
+*.pch
+*.lib
+*.exe
+*.exp
+
+# vcpkg
+vcpkg_installed/
+.vcpkg-root
+
+# OS generated files
+.DS_Store
+Thumbs.db
