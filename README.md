@@ -13,8 +13,8 @@ A real-time engine sandbox using C++20 and Raylib for demonstrating geometric al
 
 1. **Clone the repository**:
    ```bash
-   git clone <repository_url>
-   cd geo_sandbox
+   git clone https://github.com/kozakbalint/geom
+   cd geom
    ```
 
 2. **Configure with CMake**:
