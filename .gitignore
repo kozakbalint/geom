@@ -8,7 +8,8 @@ bin/
 wayfinder/
 *.log
 debug_freeze.log
-*.md
+SPEC.md
+CONTEXT.md
 
 # CMake
 CMakeCache.txt
