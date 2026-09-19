@@ -16,7 +16,5 @@ private:
     void renderUI();
 
     int currentDemoIndex = 0;
-    bool isUiCollapsed = false;
-    bool isDropdownActive = false;
     TriangleDemo triangleDemo;
 };
