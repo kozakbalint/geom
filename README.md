@@ -40,17 +40,18 @@ To add a new isolated graphics demo to the sandbox, follow these steps:
 
 1. **Create the Demo Class**:
    Create a new header and source file in `src/demos/` (e.g., `MyNewDemo.h` and `MyNewDemo.cpp`).
-   Your class must inherit from the `Demo` abstract base class defined in `src/core/Demo.h` and implement the `init()`, `render()`, and `destroy()` methods.
+   Your class must inherit from the `Demo` abstract base class defined in `src/demos/Demo.h` and implement the `init()`, `render()`, and `destroy()` methods. You can also optionally override `renderUI()`.
 
    ```cpp
    // src/demos/MyNewDemo.h
    #pragma once
-   #include "core/Demo.h"
+   #include "demos/Demo.h"
 
    class MyNewDemo : public Demo {
    public:
        void init() override;
        void render() override;
+       void renderUI() override; // optional
        void destroy() override;
    };
    ```
@@ -58,14 +59,14 @@ To add a new isolated graphics demo to the sandbox, follow these steps:
 2. **Register the Demo in CMake**:
    Add your new source file (`src/demos/MyNewDemo.cpp`) to the `add_executable` list in `CMakeLists.txt`.
 
-3. **Integrate with the Sandbox Engine**:
+3. **Integrate with the Sandbox App**:
    To make your demo selectable and renderable, you need to hook it into the `SandboxApp`.
 
-   - **In `src/core/SandboxApp.h`**:
+   - **In `src/app/SandboxApp.h`**:
      - Include your demo's header: `#include "demos/MyNewDemo.h"`
      - Add an instance as a private member: `MyNewDemo myNewDemo;`
 
-   - **In `src/core/SandboxApp.cpp`**:
+   - **In `src/app/SandboxApp.cpp`**:
      - **Initialization**: Inside `SandboxApp::initWindow()`, initialize your demo:
        ```cpp
        myNewDemo.init();
@@ -76,11 +77,17 @@ To add a new isolated graphics demo to the sandbox, follow these steps:
        ```
      - **UI Selection**: Inside `SandboxApp::renderUI()`, add your demo's name to the `items` array for the ImGui combo box. The index of the string in the array will become its demo index.
        ```cpp
-       const char* items[] = { "Rainbow Triangle", "Catmull-Clark", "Tubular Lofting", "My New Demo" };
+       const char* items[] = { "Subdivision", "My New Demo" };
+       ```
+       You also need to call its UI rendering method when selected:
+       ```cpp
+       if (currentDemoIndex == 1) {
+           myNewDemo.renderUI();
+       }
        ```
      - **Rendering**: Inside `SandboxApp::drawFrame()`, add a condition to render your demo when its index is selected:
        ```cpp
-       if (currentDemoIndex == 3) { // Use the corresponding index from the items array
+       if (currentDemoIndex == 1) { // Use the corresponding index from the items array
            myNewDemo.render();
        }
        ```

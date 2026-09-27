@@ -7,7 +7,6 @@ bin/
 .scratch/
 wayfinder/
 *.log
-debug_freeze.log
 SPEC.md
 CONTEXT.md
 

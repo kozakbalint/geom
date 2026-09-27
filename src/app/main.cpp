@@ -1,4 +1,4 @@
-#include "core/SandboxApp.h"
+#include "app/SandboxApp.h"
 #include <iostream>
 
 int main() {

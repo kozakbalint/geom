@@ -1,6 +1,6 @@
 #pragma once
 
-#include "demos/TriangleDemo.h"
+#include "demos/subdivision/SubdivisionDemo.h"
 #include <raylib.h>
 
 class SandboxApp {
@@ -16,5 +16,5 @@ private:
     void renderUI();
 
     int currentDemoIndex = 0;
-    TriangleDemo triangleDemo;
+    SubdivisionDemo subdivisionDemo;
 };
