@@ -41,3 +41,4 @@ vcpkg_installed/
 # OS generated files
 .DS_Store
 Thumbs.db
+wayfinder-map.md

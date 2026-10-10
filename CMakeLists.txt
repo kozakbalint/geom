@@ -12,6 +12,7 @@ FetchContent_Declare(
   raylib
   GIT_REPOSITORY https://github.com/raysan5/raylib.git
   GIT_TAG        master
+  GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(raylib)
 
@@ -19,6 +20,7 @@ FetchContent_Declare(
   imgui
   GIT_REPOSITORY https://github.com/ocornut/imgui.git
   GIT_TAG        docking
+  GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(imgui)
 
@@ -26,6 +28,7 @@ FetchContent_Declare(
   rlimgui
   GIT_REPOSITORY https://github.com/raylib-extras/rlImGui.git
   GIT_TAG        main
+  GIT_SHALLOW    TRUE
 )
 FetchContent_MakeAvailable(rlimgui)
 
@@ -50,10 +53,22 @@ target_include_directories(geo_sandbox PRIVATE
     ${rlimgui_SOURCE_DIR}
 )
 
-find_package(glm CONFIG REQUIRED)
+find_package(glm CONFIG QUIET)
+if(NOT TARGET glm::glm)
+  FetchContent_Declare(
+    glm
+    GIT_REPOSITORY https://github.com/g-truc/glm.git
+    GIT_TAG        1.0.1
+    GIT_SHALLOW    TRUE
+  )
+  FetchContent_MakeAvailable(glm)
+endif()
 
 target_link_libraries(geo_sandbox PRIVATE
     raylib
     glm::glm
 )
-set_target_properties(geo_sandbox PROPERTIES LINK_FLAGS "/ENTRY:mainCRTStartup")
+
+if(MSVC)
+  set_target_properties(geo_sandbox PROPERTIES LINK_FLAGS "/ENTRY:mainCRTStartup")
+endif()

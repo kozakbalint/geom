@@ -1,46 +1,54 @@
-# Geo Sandbox
+# Geo sandbox
 
 A real-time engine sandbox using C++20 and Raylib for demonstrating geometric algorithms.
 
-## Setup Instructions
+## Setup instructions
+
+For a complete walkthrough covering Visual Studio, VS Code, automated scripts, and troubleshooting, refer to [SETUP.md](SETUP.md).
 
 ### Prerequisites
-- CMake 3.20 or higher
-- A C++20 compatible compiler (e.g., MSVC, GCC, Clang)
-- [vcpkg](https://vcpkg.io/) for dependency management (manifest mode is used).
 
-### Building the Project
+- CMake 3.20 or higher.
+- C++20 compatible compiler such as MSVC, Clang, or GCC.
+- Git.
 
-1. **Clone the repository**:
+### Quick start
+
+1. Clone the repository.
    ```bash
    git clone https://github.com/kozakbalint/geom
    cd geom
    ```
 
-2. **Configure with CMake**:
-   Make sure you have `vcpkg` installed. Set the toolchain file when configuring to resolve dependencies via `vcpkg.json`.
+2. Configure CMake. External dependencies download automatically.
    ```bash
-   cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE=[path/to/vcpkg]/scripts/buildsystems/vcpkg.cmake
+   cmake -B build -S .
    ```
 
-3. **Build**:
+3. Build the project.
    ```bash
-   cmake --build build
+   cmake --build build --config Debug
    ```
 
-4. **Run**:
-   The executable will be generated in the `build` directory. Depending on your platform and generator (e.g. Visual Studio), you can run it via:
+4. Run the executable.
    ```bash
    ./build/Debug/geo_sandbox.exe
    ```
 
-## How to Add a New Demo
+You can also use the PowerShell build helper on Windows:
+```powershell
+.\scripts\build-windows.ps1
+```
 
-To add a new isolated graphics demo to the sandbox, follow these steps:
+## How to add a new demo
 
-1. **Create the Demo Class**:
-   Create a new header and source file in `src/demos/` (e.g., `MyNewDemo.h` and `MyNewDemo.cpp`).
-   Your class must inherit from the `Demo` abstract base class defined in `src/demos/Demo.h` and implement the `init()`, `render()`, and `destroy()` methods. You can also optionally override `renderUI()`.
+Follow these steps to add a new isolated graphics demo to the sandbox:
+
+1. Create the demo class.
+   Create a new header and source file in `src/demos/` (such as `MyNewDemo.h` and `MyNewDemo.cpp`).
+   Your class must inherit from the `Demo` abstract base class defined in `src/demos/Demo.h`.
+   Implement the `init()`, `render()`, and `destroy()` methods.
+   You can also optionally override `renderUI()`.
 
    ```cpp
    // src/demos/MyNewDemo.h
@@ -56,38 +64,44 @@ To add a new isolated graphics demo to the sandbox, follow these steps:
    };
    ```
 
-2. **Register the Demo in CMake**:
+2. Register the demo in CMake.
    Add your new source file (`src/demos/MyNewDemo.cpp`) to the `add_executable` list in `CMakeLists.txt`.
 
-3. **Integrate with the Sandbox App**:
-   To make your demo selectable and renderable, you need to hook it into the `SandboxApp`.
+3. Integrate with the sandbox app.
+   Hook your demo into `SandboxApp` to make it selectable in the UI.
 
-   - **In `src/app/SandboxApp.h`**:
-     - Include your demo's header: `#include "demos/MyNewDemo.h"`
-     - Add an instance as a private member: `MyNewDemo myNewDemo;`
+   - In `src/app/SandboxApp.h`:
+     - Include your demo header:
+       ```cpp
+       #include "demos/MyNewDemo.h"
+       ```
+     - Add an instance as a private member:
+       ```cpp
+       MyNewDemo myNewDemo;
+       ```
 
-   - **In `src/app/SandboxApp.cpp`**:
-     - **Initialization**: Inside `SandboxApp::initWindow()`, initialize your demo:
+   - In `src/app/SandboxApp.cpp`:
+     - Inside `SandboxApp::initWindow()`, initialize your demo:
        ```cpp
        myNewDemo.init();
        ```
-     - **Cleanup**: Inside `SandboxApp::cleanup()`, destroy your demo:
+     - Inside `SandboxApp::cleanup()`, destroy your demo:
        ```cpp
        myNewDemo.destroy();
        ```
-     - **UI Selection**: Inside `SandboxApp::renderUI()`, add your demo's name to the `items` array for the ImGui combo box. The index of the string in the array will become its demo index.
+     - Inside `SandboxApp::renderUI()`, add your demo name to the `items` array for the ImGui combo box:
        ```cpp
        const char* items[] = { "Subdivision", "My New Demo" };
        ```
-       You also need to call its UI rendering method when selected:
+       Call its UI rendering method when selected:
        ```cpp
        if (currentDemoIndex == 1) {
            myNewDemo.renderUI();
        }
        ```
-     - **Rendering**: Inside `SandboxApp::drawFrame()`, add a condition to render your demo when its index is selected:
+     - Inside `SandboxApp::drawFrame()`, add a condition to render your demo when selected:
        ```cpp
-       if (currentDemoIndex == 1) { // Use the corresponding index from the items array
+       if (currentDemoIndex == 1) {
            myNewDemo.render();
        }
        ```
