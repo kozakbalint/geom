@@ -3,6 +3,7 @@
 #include "demos/Demo.h"
 #include "geometry/mesh/HalfEdgeConversion.h"
 #include <raylib.h>
+#include <string>
 
 class SubdivisionDemo : public Demo {
 public:
@@ -13,10 +14,13 @@ public:
 
 private:
     void rebuildCache();
+    void normalizeMesh(Mesh& mesh);
+    bool loadFile(const std::string& path);
 
     enum Schema {
         SCHEMA_LOOP = 0,
-        SCHEMA_BUTTERFLY
+        SCHEMA_BUTTERFLY,
+        SCHEMA_CATMULL_CLARK
     };
 
     core::SubdividedMeshCache cache;
@@ -24,6 +28,10 @@ private:
     Model loadedModel = {0};
     bool isModelLoaded = false;
     bool meshLoaded = false;
+    std::string loadedFileName = "";
+    std::string statusMessage = "";
+    int loadedVertexCount = 0;
+    int loadedTriangleCount = 0;
     Material material;
     Material wireMaterial;
 

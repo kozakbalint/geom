@@ -35,9 +35,12 @@ FetchContent_MakeAvailable(rlimgui)
 add_executable(geo_sandbox WIN32
     src/app/main.cpp
     src/app/SandboxApp.cpp
+    src/utils/FileDialog.cpp
+    src/utils/STLLoader.cpp
     src/geometry/mesh/HalfEdgeConversion.cpp
     src/geometry/subdivision/LoopSubdivision.cpp
     src/geometry/subdivision/ButterflySubdivision.cpp
+    src/geometry/subdivision/CatmullClarkSubdivision.cpp
     src/demos/subdivision/SubdivisionDemo.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
@@ -68,6 +71,10 @@ target_link_libraries(geo_sandbox PRIVATE
     raylib
     glm::glm
 )
+
+if(WIN32)
+    target_link_libraries(geo_sandbox PRIVATE comdlg32)
+endif()
 
 if(MSVC)
   set_target_properties(geo_sandbox PROPERTIES LINK_FLAGS "/ENTRY:mainCRTStartup")

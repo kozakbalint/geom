@@ -42,3 +42,10 @@ vcpkg_installed/
 .DS_Store
 Thumbs.db
 wayfinder-map.md
+imgui.ini
+
+# Portable environment
+tools/
+vcpkg/
+build.bat
+run.bat

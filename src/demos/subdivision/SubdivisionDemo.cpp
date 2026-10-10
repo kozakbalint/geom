@@ -1,13 +1,18 @@
 #include "demos/subdivision/SubdivisionDemo.h"
 #include "geometry/subdivision/LoopSubdivision.h"
 #include "geometry/subdivision/ButterflySubdivision.h"
+#include "geometry/subdivision/CatmullClarkSubdivision.h"
 #include "demos/subdivision/FlatShader.h"
+#include "utils/FileDialog.h"
+#include "utils/STLLoader.h"
 #include <rlgl.h>
 #include <raymath.h>
 #include <imgui.h>
+#include <algorithm>
+#include <cctype>
 
 void SubdivisionDemo::init() {
-    camera.position = { 0.0f, 2.0f, 4.0f };
+    camera.position = { 0.0f, 1.5f, 3.5f };
     camera.target = { 0.0f, 0.0f, 0.0f };
     camera.up = { 0.0f, 1.0f, 0.0f };
     camera.fovy = 45.0f;
@@ -56,8 +61,10 @@ void SubdivisionDemo::rebuildCache() {
         core::HalfEdgeMesh subHe;
         if (currentSchema == SCHEMA_LOOP) {
             subHe = core::LoopSubdivision::Subdivide(cache.heLevels.back());
-        } else {
+        } else if (currentSchema == SCHEMA_BUTTERFLY) {
             subHe = core::ButterflySubdivision::Subdivide(cache.heLevels.back());
+        } else if (currentSchema == SCHEMA_CATMULL_CLARK) {
+            subHe = core::CatmullClarkSubdivision::Subdivide(cache.heLevels.back());
         }
         cache.heLevels.push_back(subHe);
         
@@ -67,31 +74,103 @@ void SubdivisionDemo::rebuildCache() {
     }
 }
 
-void SubdivisionDemo::render() {
-    if (IsFileDropped()) {
-        FilePathList droppedFiles = LoadDroppedFiles();
-        if (droppedFiles.count > 0) {
-            const char* path = droppedFiles.paths[0];
-            if (IsFileExtension(path, ".obj") || IsFileExtension(path, ".stl")) {
-                if (isModelLoaded) {
-                    UnloadModel(loadedModel);
-                } else if (meshLoaded) {
-                    UnloadMesh(currentBaseMesh);
-                }
-                loadedModel = LoadModel(path);
-                isModelLoaded = true;
-                meshLoaded = false;
-                
-                if (loadedModel.meshCount > 0) {
-                    currentBaseMesh = loadedModel.meshes[0];
-                    currentIteration = 0;
-                    rebuildCache();
-                }
-            }
-        }
-        UnloadDroppedFiles(droppedFiles);
+void SubdivisionDemo::normalizeMesh(Mesh& mesh) {
+    if (mesh.vertexCount == 0 || mesh.vertices == nullptr) return;
+
+    float minX = mesh.vertices[0], maxX = mesh.vertices[0];
+    float minY = mesh.vertices[1], maxY = mesh.vertices[1];
+    float minZ = mesh.vertices[2], maxZ = mesh.vertices[2];
+
+    for (int i = 1; i < mesh.vertexCount; ++i) {
+        float x = mesh.vertices[i * 3 + 0];
+        float y = mesh.vertices[i * 3 + 1];
+        float z = mesh.vertices[i * 3 + 2];
+
+        if (x < minX) minX = x;
+        if (x > maxX) maxX = x;
+        if (y < minY) minY = y;
+        if (y > maxY) maxY = y;
+        if (z < minZ) minZ = z;
+        if (z > maxZ) maxZ = z;
     }
 
+    float centerX = (minX + maxX) * 0.5f;
+    float centerY = (minY + maxY) * 0.5f;
+    float centerZ = (minZ + maxZ) * 0.5f;
+
+    float sizeX = maxX - minX;
+    float sizeY = maxY - minY;
+    float sizeZ = maxZ - minZ;
+
+    float maxDim = std::max({ sizeX, sizeY, sizeZ });
+    if (maxDim < 1e-6f) maxDim = 1.0f;
+
+    // Scale so that maximum dimension is 2.0 units (fitting neatly in [-1, 1])
+    float scale = 2.0f / maxDim;
+
+    for (int i = 0; i < mesh.vertexCount; ++i) {
+        mesh.vertices[i * 3 + 0] = (mesh.vertices[i * 3 + 0] - centerX) * scale;
+        mesh.vertices[i * 3 + 1] = (mesh.vertices[i * 3 + 1] - centerY) * scale;
+        mesh.vertices[i * 3 + 2] = (mesh.vertices[i * 3 + 2] - centerZ) * scale;
+    }
+}
+
+bool SubdivisionDemo::loadFile(const std::string& path) {
+    if (path.empty()) return false;
+
+    std::string ext = GetFileExtension(path.c_str());
+    for (char& c : ext) c = (char)tolower(c);
+    if (ext != ".obj" && ext != ".stl") {
+        statusMessage = "Unsupported file type: " + ext;
+        return false;
+    }
+
+    Model newModel = { 0 };
+    if (ext == ".stl") {
+        newModel = utils::LoadModelSTL(path);
+    } else {
+        newModel = LoadModel(path.c_str());
+    }
+
+    if (newModel.meshCount == 0) {
+        statusMessage = "Failed to load model: " + path;
+        return false;
+    }
+
+    if (isModelLoaded) {
+        UnloadModel(loadedModel);
+    } else if (meshLoaded) {
+        UnloadMesh(currentBaseMesh);
+    }
+
+    loadedModel = newModel;
+    isModelLoaded = true;
+    meshLoaded = false;
+
+    currentBaseMesh = loadedModel.meshes[0];
+    normalizeMesh(currentBaseMesh);
+
+    // Reset camera to nicely frame the centered, normalized model
+    camera.position = { 0.0f, 1.5f, 3.5f };
+    camera.target = { 0.0f, 0.0f, 0.0f };
+    camera.up = { 0.0f, 1.0f, 0.0f };
+
+    loadedFileName = GetFileName(path.c_str());
+    loadedVertexCount = currentBaseMesh.vertexCount;
+    loadedTriangleCount = currentBaseMesh.triangleCount;
+    statusMessage = "Loaded: " + loadedFileName;
+
+    currentIteration = 0;
+    rebuildCache();
+
+    if (!cache.raylibLevels.empty()) {
+        loadedVertexCount = cache.raylibLevels[0].vertexCount;
+        loadedTriangleCount = cache.raylibLevels[0].triangleCount;
+    }
+    return true;
+}
+
+void SubdivisionDemo::render() {
     if (!ImGui::GetIO().WantCaptureMouse) {
         if (IsMouseButtonDown(MOUSE_BUTTON_LEFT)) {
             Vector2 mouseDelta = GetMouseDelta();
@@ -166,6 +245,28 @@ void SubdivisionDemo::render() {
 }
 
 void SubdivisionDemo::renderUI() {
+    if (ImGui::CollapsingHeader("Model", ImGuiTreeNodeFlags_DefaultOpen)) {
+        if (ImGui::Button("Browse File... (.obj, .stl)", ImVec2(-1, 28))) {
+            std::string selected = utils::OpenModelFileDialog(GetWindowHandle());
+            if (!selected.empty()) {
+                loadFile(selected);
+            }
+        }
+
+        if (!statusMessage.empty()) {
+            ImGui::TextColored(ImVec4(0.3f, 0.8f, 1.0f, 1.0f), "%s", statusMessage.c_str());
+        }
+
+        if (isModelLoaded || meshLoaded) {
+            ImGui::Text("Base Verts: %d | Faces: %d", loadedVertexCount, loadedTriangleCount);
+            if (ImGui::Button("Reset Camera", ImVec2(-1, 0))) {
+                camera.position = { 0.0f, 1.5f, 3.5f };
+                camera.target = { 0.0f, 0.0f, 0.0f };
+                camera.up = { 0.0f, 1.0f, 0.0f };
+            }
+        }
+    }
+
     if (ImGui::CollapsingHeader("Subdivision Controls", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (ImGui::BeginTable("controls_table", 2)) {
             ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 80.0f);
@@ -178,7 +279,7 @@ void SubdivisionDemo::renderUI() {
             ImGui::TableSetColumnIndex(1);
             ImGui::PushItemWidth(-1);
             int schema = currentSchema;
-            if (ImGui::Combo("##Schema", &schema, "Loop\0Butterfly\0")) {
+            if (ImGui::Combo("##Schema", &schema, "Loop\0Butterfly\0Catmull-Clark\0")) {
                 currentSchema = schema;
             }
             ImGui::PopItemWidth();
@@ -198,10 +299,6 @@ void SubdivisionDemo::renderUI() {
         if (ImGui::Button("Apply Subdivision", ImVec2(-1, 0))) {
             rebuildCache();
         }
-        
-        ImGui::Separator();
-        ImGui::TextWrapped("Drag & Drop .obj or .stl files");
-        ImGui::TextWrapped("into the window to load them.");
     }
 
     if (ImGui::CollapsingHeader("Material Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
