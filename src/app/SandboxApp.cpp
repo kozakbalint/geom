@@ -20,6 +20,7 @@ void SandboxApp::initWindow() {
     rlImGuiSetup(true);
 
     subdivisionDemo.init();
+    tubularDemo.init();
 }
 
 void SandboxApp::mainLoop() {
@@ -34,6 +35,8 @@ void SandboxApp::drawFrame() {
 
     if (currentDemoIndex == 0) {
         subdivisionDemo.render();
+    } else if (currentDemoIndex == 1) {
+        tubularDemo.render();
     }
 
     rlImGuiBegin();
@@ -53,13 +56,15 @@ void SandboxApp::renderUI() {
     
     if (ImGui::CollapsingHeader("Demo Selector", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::PushItemWidth(-1);
-        const char* items[] = { "Subdivision" };
+        const char* items[] = { "Subdivision", "Tubular Shapes" };
         ImGui::Combo("##Demo", &currentDemoIndex, items, IM_ARRAYSIZE(items));
         ImGui::PopItemWidth();
     }
 
     if (currentDemoIndex == 0) {
         subdivisionDemo.renderUI();
+    } else if (currentDemoIndex == 1) {
+        tubularDemo.renderUI();
     }
 
     ImGui::End();
@@ -67,6 +72,7 @@ void SandboxApp::renderUI() {
 
 void SandboxApp::cleanup() {
     subdivisionDemo.destroy();
+    tubularDemo.destroy();
     rlImGuiShutdown();
     CloseWindow();
 }

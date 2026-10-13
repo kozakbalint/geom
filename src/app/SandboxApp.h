@@ -1,6 +1,7 @@
 #pragma once
 
 #include "demos/subdivision/SubdivisionDemo.h"
+#include "demos/tubular/TubularDemo.h"
 #include <raylib.h>
 
 class SandboxApp {
@@ -17,4 +18,5 @@ private:
 
     int currentDemoIndex = 0;
     SubdivisionDemo subdivisionDemo;
+    TubularDemo tubularDemo;
 };
