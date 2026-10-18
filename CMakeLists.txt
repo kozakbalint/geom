@@ -42,6 +42,8 @@ add_executable(geo_sandbox WIN32
     src/geometry/subdivision/ButterflySubdivision.cpp
     src/geometry/subdivision/CatmullClarkSubdivision.cpp
     src/demos/subdivision/SubdivisionDemo.cpp
+    src/demos/tubular/TubularDemo.cpp
+    src/geometry/tubular/CircleSkinning.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp
