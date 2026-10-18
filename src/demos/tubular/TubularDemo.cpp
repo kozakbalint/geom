@@ -1,4 +1,5 @@
 #include "demos/tubular/TubularDemo.h"
+#include "utils/PropertyGrid.h"
 #include <imgui.h>
 #include <raymath.h>
 #include <rlgl.h>
@@ -67,10 +68,25 @@ void TubularDemo::recomputeSkin() {
     for (const auto& s : spheres) {
         circles2D.push_back({ { s.center.x, s.center.y }, s.radius });
     }
-    currentSkin2D = core::CircleSkinning::computeSkinning(circles2D, tangentScale, curveResolution2D);
+    if (currentAlgorithm == TubularAlgorithm::KUNKLI_HOFFMANN) {
+        currentSkin2D = core::CircleSkinning::computeSkinning(circles2D, tangentScale, curveResolution2D);
+        currentSkin3D = core::CircleSkinning::computeSkinning3D(spheres, tangentScale, phiResolution3D, tResolution3D);
+    } else {
+        core::DiskBezierConfig2D cfg2D;
+        cfg2D.mode = bezierDegreeMode;
+        cfg2D.samplesPerSegment = curveResolution2D;
+        cfg2D.endCapStyle = core::EndCapStyle::ROUND;
+        currentDisk2D = core::DiskBezier::computeSkinning2D(circles2D, cfg2D);
+        currentSkin2D = currentDisk2D.skin;
 
-    // 3D Skinning (using full 3D coordinates, Y is UP)
-    currentSkin3D = core::CircleSkinning::computeSkinning3D(spheres, tangentScale, phiResolution3D, tResolution3D);
+        core::DiskBezierConfig3D cfg3D;
+        cfg3D.mode = bezierDegreeMode;
+        cfg3D.tSamplesPerSegment = tResolution3D;
+        cfg3D.phiResolution = phiResolution3D;
+        cfg3D.endCapStyle = core::EndCapStyle::OPEN;
+        currentDisk3D = core::DiskBezier::computeSkinning3D(spheres, cfg3D);
+        currentSkin3D = currentDisk3D.skin;
+    }
 
     if (!currentSkin2D.isValid && currentMode == ViewMode::MODE_2D) {
         statusMessage = "2D Skinning notice: " + currentSkin2D.errorMessage;
@@ -582,7 +598,10 @@ void TubularDemo::renderScene2D() {
         drawContactPoints2D();
     }
 
-    // 7. Interactive preview during placement
+    // 7. Control polygon for Disk Bézier
+    drawControlPolygon2D();
+
+    // 8. Interactive preview during placement
     if (inputState == InputState::PLACING_RADIUS) {
         Vector2 screenCenter = worldToScreen2D(pendingCenter2D);
         float screenRadius = pendingRadius2D * camera2D.zoom;
@@ -594,6 +613,36 @@ void TubularDemo::renderScene2D() {
         Vector2 screenMouse = GetMousePosition();
         DrawLineV(screenCenter, screenMouse, Color{ 46, 204, 113, 180 });
     }
+}
+
+void TubularDemo::drawControlPolygon2D() {
+    if (currentAlgorithm != TubularAlgorithm::DISK_BEZIER || !showControlPolygon) return;
+    if (currentDisk2D.controlPolygon.size() < 2) return;
+
+    Color polyLineColor = { 180, 110, 220, 200 };
+    Color polyPointColor = { 210, 140, 250, 255 };
+
+    for (size_t i = 0; i + 1 < currentDisk2D.controlPolygon.size(); ++i) {
+        Vector2 p1 = worldToScreen2D(currentDisk2D.controlPolygon[i]);
+        Vector2 p2 = worldToScreen2D(currentDisk2D.controlPolygon[i + 1]);
+        DrawLineEx(p1, p2, 1.8f, polyLineColor);
+        DrawCircleV(p1, 3.5f, polyPointColor);
+    }
+    DrawCircleV(worldToScreen2D(currentDisk2D.controlPolygon.back()), 3.5f, polyPointColor);
+}
+
+void TubularDemo::drawControlPolygon3D() {
+    if (currentAlgorithm != TubularAlgorithm::DISK_BEZIER || !showControlPolygon) return;
+    if (currentDisk3D.controlPolygon.size() < 2) return;
+
+    Color polyLineColor = { 180, 110, 220, 180 };
+    Color polyPointColor = { 210, 140, 250, 230 };
+
+    for (size_t i = 0; i + 1 < currentDisk3D.controlPolygon.size(); ++i) {
+        DrawLine3D(currentDisk3D.controlPolygon[i], currentDisk3D.controlPolygon[i + 1], polyLineColor);
+        DrawSphere(currentDisk3D.controlPolygon[i], 0.035f, polyPointColor);
+    }
+    DrawSphere(currentDisk3D.controlPolygon.back(), 0.035f, polyPointColor);
 }
 
 void TubularDemo::draw3DSpheres() {
@@ -760,10 +809,17 @@ void TubularDemo::renderScene3D() {
         DrawGrid(20, 0.5f);
     }
 
-    // Draw spine connecting sphere centers
-    if (spheres.size() >= 2) {
-        for (size_t i = 0; i + 1 < spheres.size(); ++i) {
-            DrawLine3D(spheres[i].center, spheres[i + 1].center, Color{ 120, 140, 165, 140 });
+    if (currentAlgorithm == TubularAlgorithm::DISK_BEZIER) {
+        if (currentDisk3D.spineCurve.size() >= 2) {
+            for (size_t i = 0; i + 1 < currentDisk3D.spineCurve.size(); ++i) {
+                DrawLine3D(currentDisk3D.spineCurve[i], currentDisk3D.spineCurve[i + 1], Color{ 241, 196, 15, 180 });
+            }
+        }
+    } else {
+        if (spheres.size() >= 2) {
+            for (size_t i = 0; i + 1 < spheres.size(); ++i) {
+                DrawLine3D(spheres[i].center, spheres[i + 1].center, Color{ 120, 140, 165, 140 });
+            }
         }
     }
 
@@ -784,6 +840,8 @@ void TubularDemo::renderScene3D() {
     if (showSpheres3D) {
         draw3DSpheres();
     }
+
+    drawControlPolygon3D();
 }
 
 void TubularDemo::render() {
@@ -814,14 +872,52 @@ void TubularDemo::render() {
 }
 
 void TubularDemo::renderUI() {
+    if (ImGui::CollapsingHeader("Algorithm Selection", ImGuiTreeNodeFlags_DefaultOpen)) {
+        int algoIdx = (currentAlgorithm == TubularAlgorithm::KUNKLI_HOFFMANN) ? 0 : 1;
+        const char* algos[] = { "Kunkli-Hoffmann Skinning", "Disk Bézier Curve" };
+
+        if (auto grid = ui::PropertyGrid::begin("AlgoGrid")) {
+            if (grid.combo("Algorithm", &algoIdx, algos, IM_ARRAYSIZE(algos))) {
+                currentAlgorithm = (algoIdx == 0) ? TubularAlgorithm::KUNKLI_HOFFMANN : TubularAlgorithm::DISK_BEZIER;
+                recomputeSkin();
+            }
+
+            if (currentAlgorithm == TubularAlgorithm::DISK_BEZIER) {
+                int degIdx = (bezierDegreeMode == core::BezierDegreeMode::PIECEWISE_CUBIC_SPLINE) ? 0 : 1;
+                const char* degModes[] = { "Piecewise Cubic Spline (C1)", "Single Bézier (Hull)" };
+                if (grid.combo("Bézier Mode", &degIdx, degModes, IM_ARRAYSIZE(degModes))) {
+                    bezierDegreeMode = (degIdx == 0) ? core::BezierDegreeMode::PIECEWISE_CUBIC_SPLINE : core::BezierDegreeMode::SINGLE_BEZIER;
+                    recomputeSkin();
+                }
+
+                grid.checkbox("Control Poly", &showControlPolygon);
+
+                const auto& diag = (currentMode == ViewMode::MODE_2D) ? currentDisk2D.diagnostics : currentDisk3D.diagnostics;
+                grid.text("Degree", "%d", diag.degree);
+                grid.text("Margin", "%.3f", diag.minMargin);
+            }
+        }
+
+        if (currentAlgorithm == TubularAlgorithm::DISK_BEZIER) {
+            const auto& diag = (currentMode == ViewMode::MODE_2D) ? currentDisk2D.diagnostics : currentDisk3D.diagnostics;
+            if (diag.hasSwallowing) {
+                ImGui::PushStyleColor(ImGuiCol_Text, ImVec4(1.0f, 0.65f, 0.0f, 1.0f));
+                ImGui::TextWrapped("Notice: Swallowing condition detected (||c'|| < |r'|)");
+                ImGui::PopStyleColor();
+            }
+        }
+    }
+
     if (ImGui::CollapsingHeader("View Mode Selection", ImGuiTreeNodeFlags_DefaultOpen)) {
         int modeIdx = (currentMode == ViewMode::MODE_2D) ? 0 : 1;
         const char* modes[] = { "2D Canvas (Click & Edit Circles)", "3D Tubular Surface" };
-        if (ImGui::Combo("Mode##ViewMode", &modeIdx, modes, IM_ARRAYSIZE(modes))) {
-            currentMode = (modeIdx == 0) ? ViewMode::MODE_2D : ViewMode::MODE_3D;
-            statusMessage = (currentMode == ViewMode::MODE_2D)
-                ? "Switched to 2D Canvas: Click to place circles, drag to edit."
-                : "Switched to 3D View: Left-drag to orbit, right-drag to pan, wheel to zoom.";
+        if (auto grid = ui::PropertyGrid::begin("ViewModeGrid")) {
+            if (grid.combo("View Mode", &modeIdx, modes, IM_ARRAYSIZE(modes))) {
+                currentMode = (modeIdx == 0) ? ViewMode::MODE_2D : ViewMode::MODE_3D;
+                statusMessage = (currentMode == ViewMode::MODE_2D)
+                    ? "Switched to 2D Canvas: Click to place circles, drag to edit."
+                    : "Switched to 3D View: Left-drag to orbit, right-drag to pan, wheel to zoom.";
+            }
         }
 
         if (currentMode == ViewMode::MODE_2D) {
@@ -844,16 +940,16 @@ void TubularDemo::renderUI() {
     }
 
     if (ImGui::CollapsingHeader("Presets (Kunkli-Hoffmann Paper)", ImGuiTreeNodeFlags_DefaultOpen)) {
-        if (ImGui::Button("Preset 1: S-Curve Pipe (2D/3D)", ImVec2(-1, 0))) {
+        if (ImGui::Button("S-Curve Pipe", ImVec2(-1, 0))) {
             loadPreset(0);
         }
-        if (ImGui::Button("Preset 2: Varying Radii (2D/3D)", ImVec2(-1, 0))) {
+        if (ImGui::Button("Varying Radii", ImVec2(-1, 0))) {
             loadPreset(1);
         }
-        if (ImGui::Button("Preset 3: Figure 15 (3D Space Knot)", ImVec2(-1, 0))) {
+        if (ImGui::Button("Space Knot", ImVec2(-1, 0))) {
             loadPreset(2);
         }
-        if (ImGui::Button("Preset 4: Figure 16 (3D Seahorse)", ImVec2(-1, 0))) {
+        if (ImGui::Button("Seahorse", ImVec2(-1, 0))) {
             loadPreset(3);
         }
     }
@@ -887,22 +983,28 @@ void TubularDemo::renderUI() {
             ImGui::Checkbox("Show 3D Touching Circles (Green Rings)", &showTouchingCircles3D);
             ImGui::Checkbox("Show 3D Spheres", &showSpheres3D);
             ImGui::Checkbox("Show Ground Grid", &showGrid3D);
-            ImGui::ColorEdit3("Surface Color", surfaceColor);
-            ImGui::SliderFloat("Light Intensity", &lightIntensity, 0.2f, 2.0f);
-            ImGui::SliderFloat("Surface Shininess", &shininess, 8.0f, 64.0f, "%.0f");
-            ImGui::SliderFloat("Specular Strength", &specularStrength, 0.0f, 1.0f, "%.2f");
+            if (auto grid = ui::PropertyGrid::begin("SurfaceVisualsGrid")) {
+                grid.colorEdit3("Color", surfaceColor);
+                grid.sliderFloat("Intensity", &lightIntensity, 0.2f, 2.0f);
+                grid.sliderFloat("Shininess", &shininess, 8.0f, 64.0f, "%.0f");
+                grid.sliderFloat("Specular", &specularStrength, 0.0f, 1.0f, "%.2f");
+            }
         }
     }
 
     if (ImGui::CollapsingHeader("Shape & Resolution Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-        if (ImGui::SliderFloat("Tangent Scale (lambda)", &tangentScale, 0.5f, 4.0f, "%.2f (paper = 2.0)")) {
-            recomputeSkin();
-        }
-        if (currentMode == ViewMode::MODE_2D) {
-            if (ImGui::SliderInt("Curve Resolution", &curveResolution2D, 16, 128)) recomputeSkin();
-        } else {
-            if (ImGui::SliderInt("Angular Slices (phi)", &phiResolution3D, 16, 72)) recomputeSkin();
-            if (ImGui::SliderInt("Longitudinal Steps (t)", &tResolution3D, 8, 48)) recomputeSkin();
+        if (auto grid = ui::PropertyGrid::begin("ShapeResolutionGrid")) {
+            if (currentAlgorithm == TubularAlgorithm::KUNKLI_HOFFMANN) {
+                if (grid.sliderFloat("Tangent Scale", &tangentScale, 0.5f, 4.0f, "%.2f")) {
+                    recomputeSkin();
+                }
+            }
+            if (currentMode == ViewMode::MODE_2D) {
+                if (grid.sliderInt("Curve Res", &curveResolution2D, 16, 128)) recomputeSkin();
+            } else {
+                if (grid.sliderInt("Angular Slices", &phiResolution3D, 16, 72)) recomputeSkin();
+                if (grid.sliderInt("Long. Steps", &tResolution3D, 8, 48)) recomputeSkin();
+            }
         }
     }
 
@@ -925,24 +1027,24 @@ void TubularDemo::renderUI() {
 
         for (size_t i = 0; i < spheres.size(); ++i) {
             std::string label = "Sphere / Circle " + std::to_string(i + 1);
-            if (ImGui::TreeNode(label.c_str())) {
+            if (ui::TreeNodeScope node{label.c_str()}) {
                 auto& s = spheres[i];
                 float pos[3] = { s.center.x, s.center.y, s.center.z };
-                if (ImGui::DragFloat3("Center (X, Y, Z)", pos, 0.02f)) {
-                    s.center = { pos[0], pos[1], pos[2] };
-                    recomputeSkin();
-                }
-                if (ImGui::SliderFloat("Radius", &s.radius, 0.05f, 2.0f, "%.2f")) {
-                    recomputeSkin();
+                if (auto grid = ui::PropertyGrid::begin("SphereProps")) {
+                    if (grid.dragFloat3("Center", pos, 0.02f)) {
+                        s.center = { pos[0], pos[1], pos[2] };
+                        recomputeSkin();
+                    }
+                    if (grid.sliderFloat("Radius", &s.radius, 0.05f, 2.0f, "%.2f")) {
+                        recomputeSkin();
+                    }
                 }
                 if (ImGui::Button(("Delete##" + std::to_string(i)).c_str())) {
                     spheres.erase(spheres.begin() + i);
                     if (selectedSphereIndex == (int)i) selectedSphereIndex = -1;
                     recomputeSkin();
-                    ImGui::TreePop();
                     break;
                 }
-                ImGui::TreePop();
             }
         }
     }

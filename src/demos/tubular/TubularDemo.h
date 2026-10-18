@@ -2,9 +2,15 @@
 
 #include "demos/Demo.h"
 #include "geometry/tubular/CircleSkinning.h"
+#include "geometry/tubular/DiskBezier.h"
 #include <raylib.h>
 #include <vector>
 #include <string>
+
+enum class TubularAlgorithm {
+    KUNKLI_HOFFMANN = 0,
+    DISK_BEZIER = 1
+};
 
 enum class ViewMode {
     MODE_2D = 0,
@@ -57,6 +63,8 @@ private:
     void draw3DSpheres();
     void draw3DTouchingCircles();
     void draw3DLongitudinalRibs();
+    void drawControlPolygon2D();
+    void drawControlPolygon3D();
 
     // Style presets
     void applyPaperShadedStyle();
@@ -75,6 +83,13 @@ private:
     // Skinning results cache
     core::SkinningResult currentSkin2D;
     core::SphereSkinningResult3D currentSkin3D;
+
+    // Algorithm selection & Disk Bézier state
+    TubularAlgorithm currentAlgorithm{ TubularAlgorithm::KUNKLI_HOFFMANN };
+    core::BezierDegreeMode bezierDegreeMode{ core::BezierDegreeMode::PIECEWISE_CUBIC_SPLINE };
+    bool showControlPolygon{ true };
+    core::DiskBezierResult2D currentDisk2D;
+    core::DiskBezierResult3D currentDisk3D;
 
     // 2D Interactive placement / editing state
     InputState inputState{ InputState::IDLE };

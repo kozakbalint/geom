@@ -5,6 +5,7 @@
 #include "demos/subdivision/FlatShader.h"
 #include "utils/FileDialog.h"
 #include "utils/STLLoader.h"
+#include "utils/PropertyGrid.h"
 #include <rlgl.h>
 #include <raymath.h>
 #include <imgui.h>
@@ -268,32 +269,12 @@ void SubdivisionDemo::renderUI() {
     }
 
     if (ImGui::CollapsingHeader("Subdivision Controls", ImGuiTreeNodeFlags_DefaultOpen)) {
-        if (ImGui::BeginTable("controls_table", 2)) {
-            ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 80.0f);
-            ImGui::TableSetupColumn("Control", ImGuiTableColumnFlags_WidthFixed, 180.0f);
-
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Schema");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::PushItemWidth(-1);
+        if (auto grid = ui::PropertyGrid::begin("controls_table")) {
             int schema = currentSchema;
-            if (ImGui::Combo("##Schema", &schema, "Loop\0Butterfly\0Catmull-Clark\0")) {
+            if (grid.combo("Schema", &schema, "Loop\0Butterfly\0Catmull-Clark\0")) {
                 currentSchema = schema;
             }
-            ImGui::PopItemWidth();
-
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Iterations");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::PushItemWidth(-1);
-            ImGui::SliderInt("##Iterations", &currentIteration, 0, maxIterations);
-            ImGui::PopItemWidth();
-            
-            ImGui::EndTable();
+            grid.sliderInt("Iterations", &currentIteration, 0, maxIterations);
         }
         
         if (ImGui::Button("Apply Subdivision", ImVec2(-1, 0))) {
@@ -302,63 +283,13 @@ void SubdivisionDemo::renderUI() {
     }
 
     if (ImGui::CollapsingHeader("Material Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
-        if (ImGui::BeginTable("mat_controls_table", 2)) {
-            ImGui::TableSetupColumn("Label", ImGuiTableColumnFlags_WidthFixed, 80.0f);
-            ImGui::TableSetupColumn("Control", ImGuiTableColumnFlags_WidthFixed, 180.0f);
-
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Wireframe");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::Checkbox("##Wireframe", &wireframe);
-
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Face Opac.");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::PushItemWidth(-1);
-            ImGui::SliderFloat("##FaceOpacity", &faceOpacity, 0.0f, 1.0f);
-            ImGui::PopItemWidth();
-
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Light Yaw");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::PushItemWidth(-1);
-            ImGui::SliderFloat("##LightYaw", &lightYaw, -180.0f, 180.0f);
-            ImGui::PopItemWidth();
-
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Light Pitch");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::PushItemWidth(-1);
-            ImGui::SliderFloat("##LightPitch", &lightPitch, -90.0f, 90.0f);
-            ImGui::PopItemWidth();
-
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Intensity");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::PushItemWidth(-1);
-            ImGui::SliderFloat("##Intensity", &lightIntensity, 0.0f, 5.0f);
-            ImGui::PopItemWidth();
-
-            ImGui::TableNextRow();
-            ImGui::TableSetColumnIndex(0);
-            ImGui::AlignTextToFramePadding();
-            ImGui::Text("Color");
-            ImGui::TableSetColumnIndex(1);
-            ImGui::PushItemWidth(-1);
-            ImGui::ColorEdit3("##Color", diffuseColorF);
-            ImGui::PopItemWidth();
-
-            ImGui::EndTable();
+        if (auto grid = ui::PropertyGrid::begin("mat_controls_table")) {
+            grid.checkbox("Wireframe", &wireframe);
+            grid.sliderFloat("Face Opac.", &faceOpacity, 0.0f, 1.0f);
+            grid.sliderFloat("Light Yaw", &lightYaw, -180.0f, 180.0f);
+            grid.sliderFloat("Light Pitch", &lightPitch, -90.0f, 90.0f);
+            grid.sliderFloat("Intensity", &lightIntensity, 0.0f, 5.0f);
+            grid.colorEdit3("Color", diffuseColorF);
         }
     }
 }

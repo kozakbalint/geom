@@ -37,6 +37,7 @@ add_executable(geo_sandbox WIN32
     src/app/SandboxApp.cpp
     src/utils/FileDialog.cpp
     src/utils/STLLoader.cpp
+    src/utils/PropertyGrid.cpp
     src/geometry/mesh/HalfEdgeConversion.cpp
     src/geometry/subdivision/LoopSubdivision.cpp
     src/geometry/subdivision/ButterflySubdivision.cpp
@@ -44,6 +45,7 @@ add_executable(geo_sandbox WIN32
     src/demos/subdivision/SubdivisionDemo.cpp
     src/demos/tubular/TubularDemo.cpp
     src/geometry/tubular/CircleSkinning.cpp
+    src/geometry/tubular/DiskBezier.cpp
     ${imgui_SOURCE_DIR}/imgui.cpp
     ${imgui_SOURCE_DIR}/imgui_demo.cpp
     ${imgui_SOURCE_DIR}/imgui_draw.cpp

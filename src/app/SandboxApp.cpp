@@ -3,6 +3,7 @@
 
 #include "imgui.h"
 #include "rlImGui.h"
+#include "utils/PropertyGrid.h"
 
 const int WIDTH = 800;
 const int HEIGHT = 600;
@@ -56,10 +57,9 @@ void SandboxApp::renderUI() {
     ImGui::Begin("Settings", nullptr, flags);
     
     if (ImGui::CollapsingHeader("Demo Selector", ImGuiTreeNodeFlags_DefaultOpen)) {
-        ImGui::PushItemWidth(-1);
-        const char* items[] = { "Subdivision", "Tubular Shapes" };
-        ImGui::Combo("##Demo", &currentDemoIndex, items, IM_ARRAYSIZE(items));
-        ImGui::PopItemWidth();
+        if (auto grid = ui::PropertyGrid::begin("DemoSelectorGrid")) {
+            grid.combo("Demo", &currentDemoIndex, { "Subdivision", "Tubular Shapes" });
+        }
     }
 
     if (currentDemoIndex == 0) {
