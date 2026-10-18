@@ -16,6 +16,7 @@ void SandboxApp::run() {
 void SandboxApp::initWindow() {
     SetConfigFlags(FLAG_WINDOW_RESIZABLE | FLAG_VSYNC_HINT);
     InitWindow(WIDTH, HEIGHT, "Geo Sandbox");
+    SetExitKey(KEY_NULL); // Prevent ESC key from closing the window
 
     rlImGuiSetup(true);
 
