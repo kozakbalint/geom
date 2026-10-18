@@ -5,6 +5,7 @@ bin/
 
 # Temporary and scratch files
 .scratch/
+scratch/
 wayfinder/
 *.log
 SPEC.md
