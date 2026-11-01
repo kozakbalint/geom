@@ -4,18 +4,6 @@
 
 namespace core {
 
-struct EdgeKey {
-    Index v0, v1;
-    bool operator==(const EdgeKey& other) const {
-        return v0 == other.v0 && v1 == other.v1;
-    }
-};
-
-struct EdgeHash {
-    std::size_t operator()(const EdgeKey& key) const {
-        return std::hash<Index>()(key.v0) ^ (std::hash<Index>()(key.v1) << 1);
-    }
-};
 
 struct VertexConnectivity {
     std::vector<Index> incident_faces;

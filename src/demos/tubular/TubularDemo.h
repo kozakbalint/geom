@@ -29,6 +29,8 @@ public:
     TubularDemo() = default;
     ~TubularDemo() override = default;
 
+    const char* name() const override { return "Tubular Shapes"; }
+
     void init() override;
     void render() override;
     void renderUI() override;
@@ -59,6 +61,8 @@ private:
     void drawFilledSkinRibbon2D();
 
     // 3D Drawing helpers
+    void uploadGpuMeshes();
+    void unloadGpuMeshes();
     void draw3DSurfaceMesh();
     void draw3DSpheres();
     void draw3DTouchingCircles();
@@ -130,6 +134,19 @@ private:
     float surfaceColor[3]{ 48.0f / 255.0f, 54.0f / 255.0f, 138.0f / 255.0f }; // Iconic Kunkli-Hoffmann Indigo
     float shininess{ 32.0f };
     float specularStrength{ 0.55f };
+
+    // Retained GPU mesh buffers & materials
+    std::vector<Mesh> gpuMeshes;
+    Shader blinnPhongShader{ 0 };
+    Material surfaceMaterial{ 0 };
+    Material wireMaterial{ 0 };
+
+    int lightDirLoc{ -1 };
+    int camPosLoc{ -1 };
+    int surfaceColorLoc{ -1 };
+    int lightIntensityLoc{ -1 };
+    int shininessLoc{ -1 };
+    int specularStrengthLoc{ -1 };
 
     // Status message
     std::string statusMessage{ "2D Canvas: Click to place circle center. Switch to 3D View anytime." };

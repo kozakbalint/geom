@@ -7,6 +7,8 @@
 
 class SubdivisionDemo : public Demo {
 public:
+    const char* name() const override { return "Subdivision"; }
+
     void init() override;
     void render() override;
     void renderUI() override;

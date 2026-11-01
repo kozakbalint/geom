@@ -38,6 +38,7 @@ add_executable(geo_sandbox WIN32
     src/utils/FileDialog.cpp
     src/utils/STLLoader.cpp
     src/utils/PropertyGrid.cpp
+    src/geometry/mesh/HalfEdgeMesh.cpp
     src/geometry/mesh/HalfEdgeConversion.cpp
     src/geometry/subdivision/LoopSubdivision.cpp
     src/geometry/subdivision/ButterflySubdivision.cpp
@@ -83,3 +84,4 @@ endif()
 if(MSVC)
   set_target_properties(geo_sandbox PROPERTIES LINK_FLAGS "/ENTRY:mainCRTStartup")
 endif()
+

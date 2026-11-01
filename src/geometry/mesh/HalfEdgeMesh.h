@@ -1,14 +1,10 @@
 #pragma once
 
+#include "geometry/mesh/TopologyTypes.h"
 #include <vector>
-#include <cstdint>
-#include <limits>
 #include <glm/glm.hpp>
 
 namespace core {
-
-using Index = uint32_t;
-constexpr Index kInvalidIndex = std::numeric_limits<Index>::max();
 
 struct HalfEdge {
     Index twin = kInvalidIndex;
@@ -64,6 +60,43 @@ public:
         m_Faces.clear();
     }
 
+    // Direct accessors with bounds guards
+    Index GetTwin(Index he) const noexcept {
+        return (he < m_HalfEdges.size()) ? m_HalfEdges[he].twin : kInvalidIndex;
+    }
+    Index GetNext(Index he) const noexcept {
+        return (he < m_HalfEdges.size()) ? m_HalfEdges[he].next : kInvalidIndex;
+    }
+    Index GetPrev(Index he) const noexcept {
+        return (he < m_HalfEdges.size()) ? m_HalfEdges[he].prev : kInvalidIndex;
+    }
+    Index GetVertex(Index he) const noexcept {
+        return (he < m_HalfEdges.size()) ? m_HalfEdges[he].vertex : kInvalidIndex;
+    }
+    Index GetFace(Index he) const noexcept {
+        return (he < m_HalfEdges.size()) ? m_HalfEdges[he].face : kInvalidIndex;
+    }
+
+    bool IsBoundaryEdge(Index he) const noexcept {
+        return GetTwin(he) == kInvalidIndex;
+    }
+    bool IsBoundaryVertex(Index v) const noexcept;
+
+    // Circulation and traversal queries
+    std::vector<Index> GetVertexNeighbors(Index v) const;
+    std::vector<Index> GetVertexFaces(Index v) const;
+    std::vector<Index> GetFaceVertices(Index f) const;
+    std::vector<Index> GetFaceHalfEdges(Index f) const;
+
+    // Twin linkage
+    void LinkTwins(Index heA, Index heB) noexcept {
+        if (heA < m_HalfEdges.size() && heB < m_HalfEdges.size()) {
+            m_HalfEdges[heA].twin = heB;
+            m_HalfEdges[heB].twin = heA;
+        }
+    }
+    void LinkTwins();
+
 private:
     std::vector<Vertex> m_Vertices;
     std::vector<HalfEdge> m_HalfEdges;
@@ -71,3 +104,4 @@ private:
 };
 
 }
+

@@ -1,4 +1,5 @@
 #include "demos/tubular/TubularDemo.h"
+#include "demos/tubular/TubularShader.h"
 #include "utils/PropertyGrid.h"
 #include <imgui.h>
 #include <raymath.h>
@@ -15,8 +16,74 @@ void TubularDemo::init() {
     hoveredSphereIndex = -1;
     isHoveringRadiusHandle = false;
 
+    // Load Blinn-Phong shader and set up materials
+    blinnPhongShader = LoadShaderFromMemory(tubular_vs, tubular_fs);
+    lightDirLoc = GetShaderLocation(blinnPhongShader, "lightDir");
+    camPosLoc = GetShaderLocation(blinnPhongShader, "camPos");
+    surfaceColorLoc = GetShaderLocation(blinnPhongShader, "surfaceColor");
+    lightIntensityLoc = GetShaderLocation(blinnPhongShader, "lightIntensity");
+    shininessLoc = GetShaderLocation(blinnPhongShader, "shininess");
+    specularStrengthLoc = GetShaderLocation(blinnPhongShader, "specularStrength");
+
+    surfaceMaterial = LoadMaterialDefault();
+    surfaceMaterial.shader = blinnPhongShader;
+
+    wireMaterial = LoadMaterialDefault();
+    wireMaterial.maps[MATERIAL_MAP_DIFFUSE].color = Color{ 20, 24, 30, 200 };
+
     // Load initial S-curve preset
     loadPreset(0);
+}
+
+void TubularDemo::destroy() {
+    unloadGpuMeshes();
+    if (blinnPhongShader.id > 0) {
+        UnloadShader(blinnPhongShader);
+        blinnPhongShader = { 0 };
+    }
+    spheres.clear();
+}
+
+void TubularDemo::uploadGpuMeshes() {
+    unloadGpuMeshes();
+    if (!IsWindowReady()) return;
+    if (!currentSkin3D.isValid || currentSkin3D.patches.empty()) return;
+
+    gpuMeshes.reserve(currentSkin3D.patches.size());
+    for (const auto& patch : currentSkin3D.patches) {
+        if (patch.vertices.empty() || patch.indices.empty()) continue;
+
+        Mesh mesh = { 0 };
+        mesh.vertexCount = static_cast<int>(patch.vertices.size());
+        mesh.triangleCount = static_cast<int>(patch.indices.size() / 3);
+        mesh.vertices = (float*)MemAlloc(mesh.vertexCount * 3 * sizeof(float));
+        mesh.normals = (float*)MemAlloc(mesh.vertexCount * 3 * sizeof(float));
+        mesh.indices = (unsigned short*)MemAlloc(patch.indices.size() * sizeof(unsigned short));
+
+        for (int i = 0; i < mesh.vertexCount; ++i) {
+            mesh.vertices[i * 3 + 0] = patch.vertices[i].position.x;
+            mesh.vertices[i * 3 + 1] = patch.vertices[i].position.y;
+            mesh.vertices[i * 3 + 2] = patch.vertices[i].position.z;
+
+            mesh.normals[i * 3 + 0] = patch.vertices[i].normal.x;
+            mesh.normals[i * 3 + 1] = patch.vertices[i].normal.y;
+            mesh.normals[i * 3 + 2] = patch.vertices[i].normal.z;
+        }
+
+        for (size_t i = 0; i < patch.indices.size(); ++i) {
+            mesh.indices[i] = static_cast<unsigned short>(patch.indices[i]);
+        }
+
+        UploadMesh(&mesh, false);
+        gpuMeshes.push_back(mesh);
+    }
+}
+
+void TubularDemo::unloadGpuMeshes() {
+    for (auto& mesh : gpuMeshes) {
+        UnloadMesh(mesh);
+    }
+    gpuMeshes.clear();
 }
 
 void TubularDemo::resetCamera2D() {
@@ -33,10 +100,6 @@ void TubularDemo::resetCamera3D() {
     camera3D.up = { 0.0f, 1.0f, 0.0f };
     camera3D.fovy = 45.0f;
     camera3D.projection = CAMERA_PERSPECTIVE;
-}
-
-void TubularDemo::destroy() {
-    spheres.clear();
 }
 
 Vector2 TubularDemo::worldToScreen2D(const Vector2& world) const {
@@ -59,6 +122,7 @@ void TubularDemo::recomputeSkin() {
         currentSkin3D.isValid = false;
         currentSkin2D.errorMessage = "Add at least 2 spheres/circles.";
         currentSkin3D.errorMessage = "Add at least 2 spheres/circles.";
+        unloadGpuMeshes();
         return;
     }
 
@@ -93,6 +157,8 @@ void TubularDemo::recomputeSkin() {
     } else if (!currentSkin3D.isValid && currentMode == ViewMode::MODE_3D) {
         statusMessage = "3D Skinning notice: " + currentSkin3D.errorMessage;
     }
+
+    uploadGpuMeshes();
 }
 
 void TubularDemo::loadPreset(int presetIndex) {
@@ -722,82 +788,33 @@ void TubularDemo::draw3DLongitudinalRibs() {
 }
 
 void TubularDemo::draw3DSurfaceMesh() {
-    if (!currentSkin3D.isValid || currentSkin3D.patches.empty()) return;
+    if (!currentSkin3D.isValid || gpuMeshes.empty()) return;
 
     Vector3 lDir = Vector3Normalize(lightDir);
-    Vector3 lFill = Vector3Normalize(Vector3{ -0.6f, -0.4f, 0.5f });
     Vector3 camPos = camera3D.position;
+
+    SetShaderValue(blinnPhongShader, lightDirLoc, &lDir, SHADER_UNIFORM_VEC3);
+    SetShaderValue(blinnPhongShader, camPosLoc, &camPos, SHADER_UNIFORM_VEC3);
+    SetShaderValue(blinnPhongShader, surfaceColorLoc, surfaceColor, SHADER_UNIFORM_VEC3);
+    SetShaderValue(blinnPhongShader, lightIntensityLoc, &lightIntensity, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(blinnPhongShader, shininessLoc, &shininess, SHADER_UNIFORM_FLOAT);
+    SetShaderValue(blinnPhongShader, specularStrengthLoc, &specularStrength, SHADER_UNIFORM_FLOAT);
 
     rlDisableBackfaceCulling();
 
-    // 1. Solid shaded surface with Blinn-Phong specular highlighting (matching paper Figures 15/16)
+    // 1. Solid shaded surface with retained GPU mesh buffers and Blinn-Phong shader
     if (showSurface3D) {
-        rlBegin(RL_TRIANGLES);
-
-        for (const auto& patch : currentSkin3D.patches) {
-            for (size_t idx = 0; idx + 2 < patch.indices.size(); idx += 3) {
-                int i0 = patch.indices[idx];
-                int i1 = patch.indices[idx + 1];
-                int i2 = patch.indices[idx + 2];
-
-                const auto& v0 = patch.vertices[i0];
-                const auto& v1 = patch.vertices[i1];
-                const auto& v2 = patch.vertices[i2];
-
-                auto emitVertex = [&](const core::SurfaceVertex3D& v) {
-                    Vector3 viewDir = Vector3Normalize(Vector3Subtract(camPos, v.position));
-                    Vector3 halfDir = Vector3Normalize(Vector3Add(lDir, viewDir));
-
-                    float nDotL = std::max(0.0f, Vector3DotProduct(v.normal, lDir));
-                    float nDotFill = std::max(0.0f, Vector3DotProduct(v.normal, lFill)) * 0.20f;
-                    float nDotH = std::max(0.0f, Vector3DotProduct(v.normal, halfDir));
-                    float spec = (nDotL > 0.0f) ? powf(nDotH, shininess) * specularStrength * lightIntensity : 0.0f;
-
-                    float diffuse = std::clamp(0.22f + 0.70f * nDotL * lightIntensity + nDotFill, 0.0f, 1.0f);
-
-                    float r = std::clamp(surfaceColor[0] * diffuse + spec, 0.0f, 1.0f);
-                    float g = std::clamp(surfaceColor[1] * diffuse + spec, 0.0f, 1.0f);
-                    float b = std::clamp(surfaceColor[2] * diffuse + spec, 0.0f, 1.0f);
-
-                    Color c = {
-                        (unsigned char)(r * 255.0f),
-                        (unsigned char)(g * 255.0f),
-                        (unsigned char)(b * 255.0f),
-                        255
-                    };
-                    rlNormal3f(v.normal.x, v.normal.y, v.normal.z);
-                    rlColor4ub(c.r, c.g, c.b, c.a);
-                    rlVertex3f(v.position.x, v.position.y, v.position.z);
-                };
-
-                emitVertex(v0);
-                emitVertex(v1);
-                emitVertex(v2);
-            }
+        for (const auto& m : gpuMeshes) {
+            DrawMesh(m, surfaceMaterial, MatrixIdentity());
         }
-
-        rlEnd();
     }
 
     // 2. Wireframe overlay
     if (showWireframe3D) {
         rlEnableWireMode();
-        rlBegin(RL_TRIANGLES);
-        Color wireCol = { 20, 24, 30, 200 };
-
-        for (const auto& patch : currentSkin3D.patches) {
-            for (size_t idx = 0; idx + 2 < patch.indices.size(); idx += 3) {
-                const auto& v0 = patch.vertices[patch.indices[idx]];
-                const auto& v1 = patch.vertices[patch.indices[idx + 1]];
-                const auto& v2 = patch.vertices[patch.indices[idx + 2]];
-
-                rlColor4ub(wireCol.r, wireCol.g, wireCol.b, wireCol.a);
-                rlVertex3f(v0.position.x, v0.position.y, v0.position.z);
-                rlVertex3f(v1.position.x, v1.position.y, v1.position.z);
-                rlVertex3f(v2.position.x, v2.position.y, v2.position.z);
-            }
+        for (const auto& m : gpuMeshes) {
+            DrawMesh(m, wireMaterial, MatrixIdentity());
         }
-        rlEnd();
         rlDisableWireMode();
     }
 
