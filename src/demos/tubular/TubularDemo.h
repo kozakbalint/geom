@@ -8,7 +8,7 @@
 #include <string>
 
 enum class TubularAlgorithm {
-    KUNKLI_HOFFMANN = 0,
+    CIRCLE_SKINNING = 0,
     DISK_BEZIER = 1
 };
 
@@ -89,7 +89,7 @@ private:
     core::SphereSkinningResult3D currentSkin3D;
 
     // Algorithm selection & Disk Bézier state
-    TubularAlgorithm currentAlgorithm{ TubularAlgorithm::KUNKLI_HOFFMANN };
+    TubularAlgorithm currentAlgorithm{ TubularAlgorithm::CIRCLE_SKINNING };
     core::BezierDegreeMode bezierDegreeMode{ core::BezierDegreeMode::PIECEWISE_CUBIC_SPLINE };
     bool showControlPolygon{ true };
     core::DiskBezierResult2D currentDisk2D;
@@ -131,7 +131,7 @@ private:
     // 3D Lighting & Blinn-Phong material (matching glossy paper Figures 15/16)
     Vector3 lightDir{ 0.7f, 1.2f, 1.0f };
     float lightIntensity{ 1.0f };
-    float surfaceColor[3]{ 48.0f / 255.0f, 54.0f / 255.0f, 138.0f / 255.0f }; // Iconic Kunkli-Hoffmann Indigo
+    float surfaceColor[3]{ 48.0f / 255.0f, 54.0f / 255.0f, 138.0f / 255.0f }; // Iconic Paper Indigo
     float shininess{ 32.0f };
     float specularStrength{ 0.55f };
 

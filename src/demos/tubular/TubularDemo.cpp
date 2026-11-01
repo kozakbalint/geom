@@ -132,7 +132,7 @@ void TubularDemo::recomputeSkin() {
     for (const auto& s : spheres) {
         circles2D.push_back({ { s.center.x, s.center.y }, s.radius });
     }
-    if (currentAlgorithm == TubularAlgorithm::KUNKLI_HOFFMANN) {
+    if (currentAlgorithm == TubularAlgorithm::CIRCLE_SKINNING) {
         currentSkin2D = core::CircleSkinning::computeSkinning(circles2D, tangentScale, curveResolution2D);
         currentSkin3D = core::CircleSkinning::computeSkinning3D(spheres, tangentScale, phiResolution3D, tResolution3D);
     } else {
@@ -890,12 +890,12 @@ void TubularDemo::render() {
 
 void TubularDemo::renderUI() {
     if (ImGui::CollapsingHeader("Algorithm Selection", ImGuiTreeNodeFlags_DefaultOpen)) {
-        int algoIdx = (currentAlgorithm == TubularAlgorithm::KUNKLI_HOFFMANN) ? 0 : 1;
-        const char* algos[] = { "Kunkli-Hoffmann Skinning", "Disk Bézier Curve" };
+        int algoIdx = (currentAlgorithm == TubularAlgorithm::CIRCLE_SKINNING) ? 0 : 1;
+        const char* algos[] = { "Circle Skinning", "Disk Bézier Curve" };
 
         if (auto grid = ui::PropertyGrid::begin("AlgoGrid")) {
             if (grid.combo("Algorithm", &algoIdx, algos, IM_ARRAYSIZE(algos))) {
-                currentAlgorithm = (algoIdx == 0) ? TubularAlgorithm::KUNKLI_HOFFMANN : TubularAlgorithm::DISK_BEZIER;
+                currentAlgorithm = (algoIdx == 0) ? TubularAlgorithm::CIRCLE_SKINNING : TubularAlgorithm::DISK_BEZIER;
                 recomputeSkin();
             }
 
@@ -956,7 +956,7 @@ void TubularDemo::renderUI() {
         }
     }
 
-    if (ImGui::CollapsingHeader("Presets (Kunkli-Hoffmann Paper)", ImGuiTreeNodeFlags_DefaultOpen)) {
+    if (ImGui::CollapsingHeader("Presets (Circle Skinning)", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (ImGui::Button("S-Curve Pipe", ImVec2(-1, 0))) {
             loadPreset(0);
         }
@@ -1011,7 +1011,7 @@ void TubularDemo::renderUI() {
 
     if (ImGui::CollapsingHeader("Shape & Resolution Settings", ImGuiTreeNodeFlags_DefaultOpen)) {
         if (auto grid = ui::PropertyGrid::begin("ShapeResolutionGrid")) {
-            if (currentAlgorithm == TubularAlgorithm::KUNKLI_HOFFMANN) {
+            if (currentAlgorithm == TubularAlgorithm::CIRCLE_SKINNING) {
                 if (grid.sliderFloat("Tangent Scale", &tangentScale, 0.5f, 4.0f, "%.2f")) {
                     recomputeSkin();
                 }

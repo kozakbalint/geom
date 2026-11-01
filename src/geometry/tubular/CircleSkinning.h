@@ -85,14 +85,14 @@ struct SphereSkinningResult3D {
 
 class CircleSkinning {
 public:
-    // Computes the Kunkli-Hoffmann skinning for a sequence of 2D circles
+    // Computes circle skinning for a sequence of 2D circles (Section 3)
     static SkinningResult computeSkinning(
         const std::vector<CircleData>& circles,
         float tangentScale = 2.0f,
         int curveResolution = 48
     );
 
-    // Computes the Kunkli-Hoffmann 3D skinning surface for a sequence of 3D spheres (Section 4)
+    // Computes 3D circle/sphere skinning surface for a sequence of 3D spheres (Section 4)
     static SphereSkinningResult3D computeSkinning3D(
         const std::vector<SphereData3D>& spheres,
         float tangentScale = 2.0f,
