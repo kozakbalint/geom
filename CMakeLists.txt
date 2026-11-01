@@ -85,23 +85,3 @@ if(MSVC)
   set_target_properties(geo_sandbox PROPERTIES LINK_FLAGS "/ENTRY:mainCRTStartup")
 endif()
 
-add_executable(pin_test
-    tests/pin_test.cpp
-    src/geometry/mesh/HalfEdgeMesh.cpp
-    src/geometry/mesh/HalfEdgeConversion.cpp
-    src/geometry/subdivision/LoopSubdivision.cpp
-    src/geometry/subdivision/ButterflySubdivision.cpp
-    src/geometry/subdivision/CatmullClarkSubdivision.cpp
-    src/geometry/tubular/CircleSkinning.cpp
-    src/geometry/tubular/DiskBezier.cpp
-)
-
-target_include_directories(pin_test PRIVATE 
-    src
-)
-
-target_link_libraries(pin_test PRIVATE
-    raylib
-    glm::glm
-)
-
